@@ -1,5 +1,0 @@
-fastapi[standard]
-motor>=3.4.0
-python-dotenv
-pymongo>=4.5.0
-
