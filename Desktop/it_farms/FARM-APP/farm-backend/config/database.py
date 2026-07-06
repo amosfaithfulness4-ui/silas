@@ -1,23 +1,30 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
-from pathlib import Path
 from dotenv import load_dotenv
 
-base_dir = Path(__file__).resolve().parent.parent
-dotenv_path = base_dir / ".env"
-if not dotenv_path.exists():
-    dotenv_path = base_dir / "schemas" / ".env"
-load_dotenv(dotenv_path)
+load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URL")
+# 1. Update these to match your uppercase .env keys perfectly!
+MONGO_DB = os.getenv("MONGODB_URL")
 DB_NAME = os.getenv("DB_NAME")
 
-if MONGODB_URL is None or DB_NAME is None:
-    raise RuntimeError(
-        f"Missing required environment variables: MONGODB_URL={MONGODB_URL!r}, DB_NAME={DB_NAME!r}. "
-        f"Searched {dotenv_path}"
-    )
+# 2. Update the checks to match the updated variables
+if not MONGO_DB:
+    raise ValueError("Missing MONGODB_URL environment variable")
+if not DB_NAME:
+    raise ValueError("Missing DB_NAME environment variable")
 
-client = AsyncIOMotorClient(MONGODB_URL)
+client = None
+db = None
 
-db = client[DB_NAME]
+async def connect_to_mongo():
+    global client, db
+    client = AsyncIOMotorClient(MONGO_DB)
+    db = client[DB_NAME]
+    print("Connected to MongoDB successfully!")
+
+async def close_mongo_connection():
+    global client
+    if client:
+        client.close()
+        print("Disconnected from MongoDB")

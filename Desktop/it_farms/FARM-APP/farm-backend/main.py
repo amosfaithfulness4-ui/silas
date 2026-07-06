@@ -1,29 +1,32 @@
 import asyncio
-from fastapi import FastAPI 
-from config.database import db
-from routes.student import student_router
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from config.database import connect_to_mongo, close_mongo_connection
+from routes.student import router as student_router
 
-app = FastAPI(
-    title="A student FARM APP",
-    description="This is a student Farm app"
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Establish connection to MongoDB at startup
+    await connect_to_mongo()
+    yield
+    # Safely close connection on shutdown
+    await close_mongo_connection()
+
+app = FastAPI(lifespan=lifespan)
+
+# Enable CORS so your React frontend on port 5173 can send requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-@app.get("/")
-async def home():
-    return {"message": "Farm API Running"}
-
-@app.get("/test-db")
-async def test_db():
-    collections = await db.list_collection_names()
-
-    return { 
-        "status": "Connected Successfully",
-        "collections": collections
-    }
-
+# Register the student routes
 app.include_router(student_router)
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the Student Farm App Backend API"}

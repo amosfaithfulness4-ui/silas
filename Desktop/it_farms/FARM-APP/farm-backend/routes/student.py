@@ -1,88 +1,50 @@
-from models.student import Student
-from config.database import db
-from schemas.student import StudentResponse
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from bson import ObjectId
+from schemas.student import StudentSchema
+import config.database as db_module
 
-student_router = APIRouter()
+router = APIRouter(prefix="/students", tags=["Students"])
 
-@student_router.get("/student", response_model=list[StudentResponse])
-async def get_list_of_students():
-        students = [] 
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_student(student: StudentSchema):
+    if db_module.db is None:
+        raise HTTPException(status_code=500, detail="Database connection is not active")
+        
+    student_dict = student.model_dump() # Converts Pydantic data to a regular dictionary
+    
+    # Insert record into the 'students' collection
+    result = await db_module.db.students.insert_one(student_dict)
+    
+    # Mutate the inserted document dictionary to return a string ID to React
+    student_dict["_id"] = str(result.inserted_id)
+    return student_dict
 
-        async for student in db.students.find():
-            student["id"] = str(student["_id"])
-            students.append(student)
-        return students
+@router.get("/", response_model=list)
+async def get_all_students():
+    if db_module.db is None:
+        raise HTTPException(status_code=500, detail="Database connection is not active")
+        
+    students_list = []
+    # Fetch all records from the database collection cursor
+    async for student in db_module.db.students.find():
+        student["_id"] = str(student["_id"]) # Cast the MongoDB ObjectId to clean string
+        students_list.append(student)
+        
+    return students_list
 
-
-
-@student_router.get("/student/{id}", response_model=StudentResponse)
-async def get_one_student(student_id:str):
-    student = await db.students.find_one({"_id" :ObjectId(student_id) })
-
-    if student is None:
-         raise HTTPException(status_code=404, detail="Student not found")
-    return {
-         "id":str(student["_id"]),
-         **student
-    }
-
-
-
-
-@student_router.post("/", response_model=StudentResponse)
-async def create_new_student(student:Student):
-     student_dict =  student.model_dump()
-     created_student = await db.students.insert_one(student_dict)
-
-     new_student = await db.students.find_one({"_id": created_student.inserted_id})  
-     new_student["id"] = str(new_student["_id"]) 
-     return new_student 
-
-@student_router.put("/student/{student_id}", response_model=StudentResponse)
-async def update_student(student_id: str, student: Student):
-     existing_student = await db.student.find_one(
-         {"_id":ObjectId(student_id)}       
-     )
-
-     if existing_student is None:
-        raise HTTPException(
-            status_code=404,
-            detail="student not found" 
-        )
-     
-     await db.students.update_one(
-     {"_id": ObjectId(student_id)},
-     {"$set": student.model_dump()}
- )
-     updated_student = await db.students.find_one(
- {"_id": ObjectId(student_id)}
- )
-     updated_student["id"] = str(updated_student["_id"])
-     return updated_student
-
-
-@student_router.delete("/student/{student_id}")
+@router.delete("/{student_id}")
 async def delete_student(student_id: str):
-
- student = await db.students.find_one(
- {"_id": ObjectId(student_id)}
- 
- 
- )
-
-
- if student is None:
-  raise HTTPException(
- status_code=404,
- detail="Student not found"
- )
-
- await db.students.delete_one(
- {"_id": ObjectId(student_id)}
- )
-
- return {
-  "message": "Student deleted successfully"
- }
+    if db_module.db is None:
+        raise HTTPException(status_code=500, detail="Database connection is not active")
+        
+    try:
+        query_id = ObjectId(student_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid student record ID format")
+        
+    delete_result = await db_module.db.students.delete_one({"_id": query_id})
+    
+    if delete_result.deleted_count == 1:
+        return {"message": "Student record successfully deleted"}
+        
+    raise HTTPException(status_code=404, detail="Student record not found")
