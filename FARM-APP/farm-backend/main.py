@@ -29,8 +29,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. Finally, register your router after the middleware
-app.include_router(student_router, prefix="/students")
+# Just pass the router directly without the extra prefix configuration
+app.include_router(student_router)
 
 @app.get("/")
 async def root():
