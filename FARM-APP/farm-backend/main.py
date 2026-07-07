@@ -13,18 +13,24 @@ async def lifespan(app: FastAPI):
     # Safely close connection on shutdown
     await close_mongo_connection()
 
+# 1. First, create the app instance
 app = FastAPI(lifespan=lifespan)
 
-# Enable CORS so your React frontend on port 5173 can send requests
+# 2. PLACE THE CORS MIDDLEWARE RIGHT HERE 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "https://silas-8.onrender.com",  # Your live Render frontend link
+        "http://localhost:5173",         # Keep this so you can still test locally
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(student_router)
+# 3. Finally, register your router after the middleware
+app.include_router(student_router, prefix="/students")
 
 @app.get("/")
 async def root():
