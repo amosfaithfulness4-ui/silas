@@ -24,7 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register the student routes
 app.include_router(student_router)
 
 @app.get("/")
