@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-// Change this: const API_URL = "http://localhost:8080";
-// To your live Render backend link:
+
 const API_URL = "https://silas-7.onrender.com";
 
 function App() {
@@ -22,12 +21,12 @@ function App() {
 
   async function fetchStudents() {
     try {
-      // Cleaned trailing slash to align with FastAPI routes standard
       const response = await fetch(`${API_URL}/students`);
 
       if (response.ok) {
         const data = await response.json();
         
+        // Match MongoDB IDs safely from the backend list payload
         const formattedStudents = data.map((student) => ({
           ...student,
           id: student.id || (student._id && typeof student._id === "object" ? student._id.$oid || String(student._id) : String(student._id))
@@ -43,14 +42,14 @@ function App() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    // Cleaned payload structure matching your backend schema parameters precisely
+    // MATCHES BACKEND SCHEMAS EXACTLY (with float fallback handling)
     const newStudent = {
       student_name: studentName,
       student_email: studentEmail,
       student_phone_no: studentPhoneNo,
-      student_level: Number(studentLevel),
-      student_gpa: Number(studentGPA),  // Map keys exactly to your backend model
-      student_cgpa: Number(studentCGPA),
+      student_level: parseInt(studentLevel) || 0,
+      student_gpa: parseFloat(studentGPA) || 0.0,  
+      student_cgpa: parseFloat(studentCGPA) || 0.0,
     };
 
     try {
@@ -63,21 +62,21 @@ function App() {
       });
 
       if (response.ok) {
-        await fetchStudents(); 
-
         setMessage("✅ Student added successfully!");
+        clearForm();
+        
+        // Pull down the clean list from database right away
+        await fetchStudents(); 
 
         setTimeout(() => {
           setMessage("");
         }, 3000);
-
-        clearForm();
       } else {
         const errData = await response.json();
-        console.log("Backend rejection details:", errData);
+        console.log("Backend validation error details:", errData);
       }
     } catch (error) {
-      console.log("Error adding student:", error);
+      console.log("Network error sending data to backend:", error);
     }
   }
 
@@ -106,15 +105,16 @@ function App() {
     }
   }
 
-  const filteredStudents = students.filter((student) => {
-    const name = student.student_name || student.full_name || "";
-    const email = student.student_email || student.email || "";
-
-    return (
-      name.toLowerCase().includes(search.toLowerCase()) ||
-      email.toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  const filteredStudents = Array.isArray(students) 
+    ? students.filter((student) => {
+        const name = student.student_name || student.name || "";
+        const email = student.student_email || student.email || "";
+        return (
+          name.toLowerCase().includes(search.toLowerCase()) ||
+          email.toLowerCase().includes(search.toLowerCase())
+        );
+      })
+    : [];
 
   return (
     <div className="app-container">
@@ -148,7 +148,7 @@ function App() {
               <div className="input-group">
                 <label>Email</label>
                 <input
-                  type="text"
+                  type="email"
                   placeholder="student@email.com"
                   value={studentEmail}
                   onChange={(e) => setStudentEmail(e.target.value)}
@@ -163,6 +163,7 @@ function App() {
                   placeholder="08012345678"
                   value={studentPhoneNo}
                   onChange={(e) => setStudentPhoneNo(e.target.value)}
+                  required
                 />
               </div>
 
@@ -173,6 +174,7 @@ function App() {
                   placeholder="400"
                   value={studentLevel}
                   onChange={(e) => setStudentLevel(e.target.value)}
+                  required
                 />
               </div>
 
@@ -184,6 +186,7 @@ function App() {
                   placeholder="4.20"
                   value={studentGPA}
                   onChange={(e) => setStudentGPA(e.target.value)}
+                  required
                 />
               </div>
 
@@ -195,6 +198,7 @@ function App() {
                   placeholder="4.60"
                   value={studentCGPA}
                   onChange={(e) => setStudentCGPA(e.target.value)}
+                  required
                 />
               </div>
 
@@ -246,35 +250,33 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-  {filteredStudents.length === 0 ? (
-    <tr>
-      <td colSpan="7" className="no-data">
-        No Student Records Found
-      </td>
-    </tr>
-  ) : (
-    filteredStudents.map((student) => (
-      <tr key={student.id || student._id}>
-        {/* Fallbacks check both 'student_name' and 'name' */}
-        <td>{student.student_name || student.name || "N/A"}</td>
-        <td>{student.student_email || student.email || "N/A"}</td>
-        <td>{student.student_phone_no || student.phone_no || student.phone || "N/A"}</td>
-        <td>{student.student_level || student.level || "N/A"}</td>
-        <td>{student.student_gpa !== undefined ? student.student_gpa : (student.gpa ?? "0.00")}</td>
-        <td>{student.student_cgpa !== undefined ? student.student_cgpa : (student.cgpa ?? "0.00")}</td>
-        <td>
-          <button
-            className="delete-btn"
-            onClick={() => deleteStudent(student.id || student._id)}
-          >
-            🗑
-          </button>
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
-
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="no-data">
+                      No Student Records Found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <tr key={student.id || student._id}>
+                      <td>{student.student_name || student.name || "N/A"}</td>
+                      <td>{student.student_email || student.email || "N/A"}</td>
+                      <td>{student.student_phone_no || student.phone_no || "N/A"}</td>
+                      <td>{student.student_level || student.level || "N/A"}</td>
+                      <td>{student.student_gpa !== undefined ? student.student_gpa : (student.gpa ?? "0.00")}</td>
+                      <td>{student.student_cgpa !== undefined ? student.student_cgpa : (student.cgpa ?? "0.00")}</td>
+                      <td>
+                        <button
+                          className="delete-btn"
+                          onClick={() => deleteStudent(student.id || student._id)}
+                        >
+                          🗑
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
             </table>
           </div>
         </div>
