@@ -1,0 +1,11 @@
+# --- Backend Ignores ---
+**/__pycache__/
+*.pyc
+**/venv/
+.vscode/
+
+# --- Frontend Ignores ---
+**/node_modules/
+**/dist/
+**/build/
+.env*.local
