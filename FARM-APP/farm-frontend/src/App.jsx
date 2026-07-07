@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-
-const API_URL = "http://localhost:8000";
+// Change this: const API_URL = "http://localhost:8080";
+// To your live Render backend link:
+const API_URL = "https://silas-7.onrender.com";
 
 function App() {
   const [studentName, setStudentName] = useState("");
@@ -21,15 +22,15 @@ function App() {
 
   async function fetchStudents() {
     try {
-      const response = await fetch(`${API_URL}/students/`);
+      // Cleaned trailing slash to align with FastAPI routes standard
+      const response = await fetch(`${API_URL}/students`);
 
       if (response.ok) {
         const data = await response.json();
         
-        // FIX: Ensure MongoDB's _id object wrapper is cleanly mapped to a string ID
         const formattedStudents = data.map((student) => ({
           ...student,
-          id: student._id && typeof student._id === "object" ? student._id.$oid || String(student._id) : student._id || student.id
+          id: student.id || (student._id && typeof student._id === "object" ? student._id.$oid || String(student._id) : String(student._id))
         }));
 
         setStudents(formattedStudents);
@@ -42,18 +43,18 @@ function App() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    // Cleaned payload structure matching backend schema
+    // Cleaned payload structure matching your backend schema parameters precisely
     const newStudent = {
       student_name: studentName,
       student_email: studentEmail,
       student_phone_no: studentPhoneNo,
       student_level: Number(studentLevel),
-      gpa: Number(studentGPA),
-      cgpa: Number(studentCGPA),
+      student_gpa: Number(studentGPA),  // Map keys exactly to your backend model
+      student_cgpa: Number(studentCGPA),
     };
 
     try {
-      const response = await fetch(`${API_URL}/students/`, {
+      const response = await fetch(`${API_URL}/students`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -62,7 +63,6 @@ function App() {
       });
 
       if (response.ok) {
-        // Force React to pull the official clean list straight from MongoDB
         await fetchStudents(); 
 
         setMessage("✅ Student added successfully!");
@@ -72,6 +72,9 @@ function App() {
         }, 3000);
 
         clearForm();
+      } else {
+        const errData = await response.json();
+        console.log("Backend rejection details:", errData);
       }
     } catch (error) {
       console.log("Error adding student:", error);
@@ -145,7 +148,7 @@ function App() {
               <div className="input-group">
                 <label>Email</label>
                 <input
-                  type="email"
+                  type="text"
                   placeholder="student@email.com"
                   value={studentEmail}
                   onChange={(e) => setStudentEmail(e.target.value)}
@@ -243,33 +246,35 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="no-data">
-                      No Student Records Found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredStudents.map((student) => (
-                    <tr key={student.id}>
-                      <td>{student.student_name || student.full_name}</td>
-                      <td>{student.student_email || student.email}</td>
-                      <td>{student.student_phone_no || student.phone}</td>
-                      <td>{student.student_level}</td>
-                      <td>{student.gpa}</td>
-                      <td>{student.cgpa}</td>
-                      <td>
-                        <button
-                          className="delete-btn"
-                          onClick={() => deleteStudent(student.id)}
-                        >
-                          🗑
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
+  {filteredStudents.length === 0 ? (
+    <tr>
+      <td colSpan="7" className="no-data">
+        No Student Records Found
+      </td>
+    </tr>
+  ) : (
+    filteredStudents.map((student) => (
+      <tr key={student.id || student._id}>
+        {/* Fallbacks check both 'student_name' and 'name' */}
+        <td>{student.student_name || student.name || "N/A"}</td>
+        <td>{student.student_email || student.email || "N/A"}</td>
+        <td>{student.student_phone_no || student.phone_no || student.phone || "N/A"}</td>
+        <td>{student.student_level || student.level || "N/A"}</td>
+        <td>{student.student_gpa !== undefined ? student.student_gpa : (student.gpa ?? "0.00")}</td>
+        <td>{student.student_cgpa !== undefined ? student.student_cgpa : (student.cgpa ?? "0.00")}</td>
+        <td>
+          <button
+            className="delete-btn"
+            onClick={() => deleteStudent(student.id || student._id)}
+          >
+            🗑
+          </button>
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
+
             </table>
           </div>
         </div>
