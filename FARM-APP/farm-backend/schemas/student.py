@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 
 
 class StudentResponse(BaseModel):
@@ -9,6 +10,8 @@ class StudentResponse(BaseModel):
     student_level: int = Field(..., description="Academic level, e.g., 300, 400")
     student_gpa: float = Field(..., description="Current Grade Point Average")
     student_cgpa: float = Field(..., description="Cumulative Grade Point Average")
+    student_password: Optional[str] = Field(None, description="Student login password")
+    admin_id: Optional[str] = Field(None, description="ID of the admin who created this student")
 
     class Config:
         json_schema_extra = {
