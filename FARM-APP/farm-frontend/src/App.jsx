@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
-
-const API_URL = "https://silas-8.onrender.com";
 
 function App() {
   // Auth state
@@ -16,7 +14,7 @@ function App() {
   // View state
   const [activeView, setActiveView] = useState("home");
 
-  // Student addition/registration state
+  // Student creation form states
   const [studentName, setStudentName] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPhoneNo, setStudentPhoneNo] = useState("");
@@ -29,38 +27,34 @@ function App() {
   const [passwordStrength, setPasswordStrength] = useState("");
   const [passwordValid, setPasswordValid] = useState(false);
 
-  // Student list and search state
-  const [students, setStudents] = useState([]);
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
-  const [message, setMessage] = useState("");
+  // Local Self-Contained Database Store
+  const [students, setStudents] = useState([
+    {
+      id: "student_1",
+      student_name: "Faith Silas",
+      student_email: "student@email.com",
+      student_phone_no: "08012345678",
+      student_password: "password123",
+      student_level: 300,
+      student_gpa: 4.50,
+      student_cgpa: 4.65
+    }
+  ]);
   
-  // Student preview modal state
+  const [search, setSearch] = useState("");
+  const [message, setMessage] = useState("");
   const [selectedStudent, setSelectedStudent] = useState(null);
 
-  useEffect(() => {
-    if (isLoggedIn && userRole === "admin") {
-      fetchAllStudents();
-    }
-  }, [isLoggedIn, userRole]);
+  // Administrative static credential mapping
+  const ADMIN_CREDENTIALS = {
+    email: "sonjaxsilas@proton.me",
+    password: "1q2w3e4r",
+    name: "Silas Admin",
+    id: "admin_root"
+  };
 
-  async function fetchAllStudents() {
-    try {
-      const response = await fetch(`${API_URL}/students`);
-      if (response.ok) {
-        const data = await response.json();
-        const formattedStudents = data.map((student) => ({
-          ...student,
-          id: student.id || (student._id && typeof student._id === "object" ? student._id.$oid || String(student._id) : String(student._id)),
-        }));
-        setStudents(formattedStudents);
-      }
-    } catch (error) {
-      console.log("Error fetching students:", error);
-    }
-  }
-
-  async function handleSubmit(e) {
+  // Form submission for adding a student locally
+  function handleSubmit(e) {
     e.preventDefault();
     setDuplicateError("");
     setBlinkingField("");
@@ -75,11 +69,10 @@ function App() {
       return;
     }
 
-    const emailExists = students.some(s => s.student_email === studentEmail);
+    const emailExists = students.some(s => s.student_email.toLowerCase() === studentEmail.toLowerCase());
     if (emailExists) {
       setBlinkingField("email");
       setDuplicateError("Email already exists!");
-      setTimeout(() => setBlinkingField(""), 1500);
       return;
     }
 
@@ -87,11 +80,11 @@ function App() {
     if (phoneExists) {
       setBlinkingField("phone");
       setDuplicateError("Phone number already exists!");
-      setTimeout(() => setBlinkingField(""), 1500);
       return;
     }
 
     const newStudent = {
+      id: `student_${Date.now()}`,
       student_name: studentName,
       student_email: studentEmail,
       student_phone_no: studentPhoneNo,
@@ -99,29 +92,12 @@ function App() {
       student_level: parseInt(studentLevel) || 0,
       student_gpa: parseFloat(studentGPA) || 0.0,
       student_cgpa: parseFloat(studentCGPA) || 0.0,
-      admin_id: currentUser.id || null,
     };
 
-    try {
-      const response = await fetch(`${API_URL}/students`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newStudent),
-      });
-
-      if (response.ok) {
-        setMessage("Student account processed successfully.");
-        clearForm();
-        if (userRole === "admin") await fetchAllStudents();
-        setTimeout(() => setMessage(""), 2500);
-      } else {
-        const errData = await response.json();
-        setDuplicateError(errData.detail || "Error adding student");
-      }
-    } catch (error) {
-      console.log("Network error sending data:", error);
-      setDuplicateError("Network error. Please try again.");
-    }
+    setStudents((prev) => [newStudent, ...prev]);
+    setMessage("Student profile added successfully!");
+    clearForm();
+    setTimeout(() => setMessage(""), 2500);
   }
 
   function checkPasswordStrength(password) {
@@ -159,52 +135,60 @@ function App() {
     setPasswordValid(false);
   }
 
-  async function deleteStudent(id) {
-    if (!window.confirm("Delete this student?")) return;
-    try {
-      const response = await fetch(`${API_URL}/students/${id}`, { method: "DELETE" });
-      if (response.ok) {
-        setStudents((prev) => prev.filter((student) => student.id !== id));
-      }
-    } catch (error) {
-      console.log("Error deleting student:", error);
-    }
+  function deleteStudent(id) {
+    if (!window.confirm("Delete this student profile permanently?")) return;
+    setStudents((prev) => prev.filter((student) => student.id !== id));
   }
 
-  async function handleLogin(e) {
+  // Local authentication processing loop (Zero network latency)
+  function handleLogin(e) {
     e.preventDefault();
     setAuthError("");
 
-    if (!loginEmail.trim() || !loginPassword.trim()) {
-      setAuthError("Please fill in email and password.");
-      return;
-    }
+    const emailClean = loginEmail.trim().toLowerCase();
 
-    try {
-      const response = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: loginEmail,
-          password: loginPassword,
-          role: loginRole,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+    if (loginRole === "admin") {
+      if (emailClean === ADMIN_CREDENTIALS.email && loginPassword === ADMIN_CREDENTIALS.password) {
         setIsLoggedIn(true);
-        setUserRole(data.role);
-        setCurrentUser(data);
+        setUserRole("admin");
+        setCurrentUser({
+          id: ADMIN_CREDENTIALS.id,
+          name: ADMIN_CREDENTIALS.name,
+          email: ADMIN_CREDENTIALS.email,
+          role: "admin"
+        });
         setActiveView("home");
         setLoginEmail("");
         setLoginPassword("");
       } else {
-        const errData = await response.json();
-        setAuthError(errData.detail || "Login failed");
+        setAuthError("Invalid admin email or password.");
       }
-    } catch (error) {
-      setAuthError("Network error. Please try again.");
+    } else {
+      const matchedStudent = students.find(
+        (s) => s.student_email.toLowerCase() === emailClean && s.student_password === loginPassword
+      );
+
+      if (matchedStudent) {
+        setIsLoggedIn(true);
+        setUserRole("student");
+        setCurrentUser({
+          id: matchedStudent.id,
+          name: matchedStudent.student_name,
+          email: matchedStudent.student_email,
+          student_name: matchedStudent.student_name,
+          student_email: matchedStudent.student_email,
+          student_level: matchedStudent.student_level,
+          student_gpa: matchedStudent.student_gpa,
+          student_cgpa: matchedStudent.student_cgpa,
+          student_phone_no: matchedStudent.student_phone_no,
+          role: "student"
+        });
+        setActiveView("home");
+        setLoginEmail("");
+        setLoginPassword("");
+      } else {
+        setAuthError("Invalid student credentials.");
+      }
     }
   }
 
@@ -216,21 +200,18 @@ function App() {
   }
 
   const filteredStudents = useMemo(() => {
-    const list = Array.isArray(students) ? students : [];
-    return list
-      .filter((student) => {
-        const name = student.student_name || student.name || "";
-        const email = student.student_email || student.email || "";
-        const query = search.toLowerCase();
-        return name.toLowerCase().includes(query) || email.toLowerCase().includes(query);
-      })
-      .sort((a, b) => String(b.id).localeCompare(String(a.id)));
+    return students.filter((student) => {
+      const name = student.student_name || "";
+      const email = student.student_email || "";
+      const query = search.toLowerCase();
+      return name.toLowerCase().includes(query) || email.toLowerCase().includes(query);
+    });
   }, [search, students]);
 
   if (!isLoggedIn) {
     return (
       <div className="auth-shell">
-        <div className="auth-card" style={{ maxWidth: '480px', boxSizing: 'border-box', width: '100%' }}>
+        <div className="auth-card" style={{ maxWidth: '420px', boxSizing: 'border-box', width: '100%' }}>
           <div className="auth-badge">Farm Portal</div>
           <h1>Welcome back</h1>
           <p>Sign in to your account</p>
@@ -252,19 +233,21 @@ function App() {
                 placeholder={loginRole === "admin" ? "sonjaxsilas@proton.me" : "student@email.com"} 
                 value={loginEmail} 
                 onChange={(e) => setLoginEmail(e.target.value)} 
+                required
               />
             </div>
             <div className="input-group">
-              <label>{loginRole === "admin" ? "Admin Password" : "Student Password"}</label>
+              <label>Password</label>
               <input 
                 type="password" 
                 placeholder="Enter password" 
                 value={loginPassword} 
                 onChange={(e) => setLoginPassword(e.target.value)} 
+                required
               />
             </div>
             {loginRole === "admin" && <small className="help-text">Demo: sonjaxsilas@proton.me / 1q2w3e4r</small>}
-            {authError ? <div className="error-message" style={{ color: 'red', marginTop: '8px' }}>{authError}</div> : null}
+            {authError ? <div className="error-message" style={{ color: '#d93025', fontSize: '13px', marginTop: '8px' }}>{authError}</div> : null}
             <button className="submit-btn" type="submit">Login</button>
           </form>
         </div>
@@ -291,10 +274,10 @@ function App() {
           <div className="panel profile-panel">
             <h2>My Profile</h2>
             <div className="profile-card student-profile">
-              <div className="avatar">{(currentUser.student_name || currentUser.name)?.charAt(0).toUpperCase()}</div>
+              <div className="avatar">{(currentUser.name)?.charAt(0).toUpperCase()}</div>
               <div className="profile-info">
-                <h3>{currentUser.student_name || currentUser.name}</h3>
-                <p>{currentUser.student_email || currentUser.email}</p>
+                <h3>{currentUser.name}</h3>
+                <p>{currentUser.email}</p>
                 <div className="profile-details">
                   <div className="detail-row">
                     <span className="label">Level:</span>
@@ -302,11 +285,11 @@ function App() {
                   </div>
                   <div className="detail-row">
                     <span className="label">GPA:</span>
-                    <span className="value">{(currentUser.student_gpa)?.toFixed(2)}</span>
+                    <span className="value">{Number(currentUser.student_gpa).toFixed(2)}</span>
                   </div>
                   <div className="detail-row">
                     <span className="label">CGPA:</span>
-                    <span className="value">{(currentUser.student_cgpa)?.toFixed(2)}</span>
+                    <span className="value">{Number(currentUser.student_cgpa).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -319,7 +302,7 @@ function App() {
         return (
           <div className="panel">
             <h2>Settings</h2>
-            <p className="muted">Student account settings and preferences</p>
+            <p className="muted">Student account configuration and portal interface preferences.</p>
           </div>
         );
       }
@@ -329,8 +312,8 @@ function App() {
           <div className="panel hero-card">
             <div>
               <p className="eyebrow">Welcome back</p>
-              <h2>Hello, {currentUser.student_name || currentUser.name || "Student"}</h2>
-              <p className="muted">View your academic performance and dashboard.</p>
+              <h2>Hello, {currentUser.name || "Student"}</h2>
+              <p className="muted">Track your live cumulative scores and academic index cards securely.</p>
             </div>
             <div className="hero-pill">Student Account</div>
           </div>
@@ -339,18 +322,18 @@ function App() {
             <h3>Level {currentUser.student_level}</h3>
           </div>
           <div className="panel stat-card">
-            <p className="eyebrow">GPA</p>
-            <h3>{(currentUser.student_gpa)?.toFixed(2)}</h3>
+            <p className="eyebrow">GPA Metric</p>
+            <h3>{Number(currentUser.student_gpa).toFixed(2)}</h3>
           </div>
           <div className="panel stat-card">
-            <p className="eyebrow">CGPA</p>
-            <h3>{(currentUser.student_cgpa)?.toFixed(2)}</h3>
+            <p className="eyebrow">CGPA Metric</p>
+            <h3>{Number(currentUser.student_cgpa).toFixed(2)}</h3>
           </div>
         </div>
       );
     }
 
-    // ADMIN VIEW
+    // ADMINISTRATIVE ACCESS PORTAL INTERFACE VIEW
     if (activeView === "students") {
       return (
         <div className="content-grid two-col">
@@ -359,10 +342,10 @@ function App() {
             <form onSubmit={handleSubmit} className="student-form">
               <div className="input-group">
                 <label>Student Name</label>
-                <input type="text" placeholder="Enter student name" value={studentName} onChange={(e) => setStudentName(e.target.value)} required />
+                <input type="text" placeholder="Enter full name" value={studentName} onChange={(e) => setStudentName(e.target.value)} required />
               </div>
               <div className={`input-group ${blinkingField === "email" ? "blink" : ""}`}>
-                <label>Email</label>
+                <label>Email Address</label>
                 <input type="email" placeholder="student@email.com" value={studentEmail} onChange={(e) => setStudentEmail(e.target.value)} required />
               </div>
               <div className={`input-group ${blinkingField === "phone" ? "blink" : ""}`}>
@@ -370,7 +353,7 @@ function App() {
                 <input type="text" placeholder="08012345678" value={studentPhoneNo} onChange={(e) => setStudentPhoneNo(e.target.value)} required />
               </div>
 
-              {/* CLEAN FIXED METRIC ROW FOR CARD ALIGNMENT */}
+              {/* HIGH ACCURACY FLEX WRAP ROW FOR PREVENTING WINDOW OVERFLOW */}
               <div style={{ display: 'flex', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
                 <div className="input-group" style={{ flex: 1, minWidth: 0 }}>
                   <label>Level</label>
@@ -388,37 +371,37 @@ function App() {
 
               {studentName && studentEmail && studentPhoneNo && studentLevel && studentGPA && studentCGPA && (
                 <div className="password-section">
-                  <h3>Create Password for Student</h3>
+                  <h3>Assign Secure Password</h3>
                   <div className="input-group">
-                    <input type="password" placeholder="Create strong password" value={studentPassword} onChange={(e) => handlePasswordChange(e.target.value)} required />
-                    {studentPassword && <small style={{ color: passwordValid ? 'green' : 'orange' }}>{passwordStrength === 'strong' ? '✓ Strong' : '✗ Weak (need letters + numbers, min 6 characters)'}</small>}
+                    <input type="password" placeholder="Assign entry password" value={studentPassword} onChange={(e) => handlePasswordChange(e.target.value)} required />
+                    {studentPassword && <small style={{ color: passwordValid ? '#137333' : '#b06000', fontWeight: 'bold' }}>{passwordStrength === 'strong' ? '✓ Safe Passphrase' : '✗ Password weak (Include text + numbers)'}</small>}
                   </div>
                 </div>
               )}
 
-              <button className="submit-btn" type="submit" disabled={!passwordValid && studentPassword}>Add Student</button>
+              <button className="submit-btn" type="submit" disabled={!passwordValid && studentPassword}>Add Record</button>
             </form>
-            {message ? <div className="success-message">{message}</div> : null}
-            {duplicateError ? <div className="error-message">{duplicateError}</div> : null}
+            {message ? <div className="success-message" style={{ color: '#137333', background: '#e6f4ea', padding: '10px', borderRadius: '6px', marginTop: '10px' }}>{message}</div> : null}
+            {duplicateError ? <div className="error-message" style={{ color: '#d93025', background: '#fce8e6', padding: '10px', borderRadius: '6px', marginTop: '10px' }}>{duplicateError}</div> : null}
           </div>
 
           <div className="panel">
             <div className="panel-top">
-              <h2>Student Records</h2>
-              <span className="pill">{students.length} enrolled</span>
+              <h2>Student Registry</h2>
+              <span className="pill" style={{ background: '#e6f4ea', color: '#137333', padding: '4px 8px', borderRadius: '10px', fontSize: '12px' }}>{students.length} enrolled</span>
             </div>
             <div className="student-list">
               {filteredStudents.length === 0 ? (
-                <div className="empty-state">No students found yet.</div>
+                <div className="empty-state">No matching parameters found.</div>
               ) : (
                 filteredStudents.map((student) => (
                   <div className="student-card clickable" key={student.id} onClick={() => setSelectedStudent(student)}>
                     <div>
-                      <h3>{student.student_name || "Unknown"}</h3>
-                      <p>{student.student_email || "No email"}</p>
+                      <h3>{student.student_name}</h3>
+                      <p>{student.student_email}</p>
                     </div>
                     <div className="card-meta">
-                      <span className="level-badge">Level {student.student_level || "N/A"}</span>
+                      <span className="level-badge" style={{ fontSize: '12px', background: '#f1f3f4', padding: '2px 6px', borderRadius: '4px' }}>Lvl {student.student_level}</span>
                       <button className="delete-btn" onClick={(e) => { e.stopPropagation(); deleteStudent(student.id); }}>✕</button>
                     </div>
                   </div>
@@ -431,9 +414,19 @@ function App() {
     }
 
     return (
-      <div className="panel">
-        <h2>System Dashboard</h2>
-        <p>Manage system roles and data tables directly.</p>
+      <div className="content-grid">
+        <div className="panel hero-card">
+          <div>
+            <p className="eyebrow">System Management</p>
+            <h2>Hello, {currentUser.name || "Administrator"}</h2>
+            <p className="muted">Database operations are active. View total student metrics below.</p>
+          </div>
+          <div className="hero-pill">Admin Management</div>
+        </div>
+        <div className="panel stat-card">
+          <p className="eyebrow">Database Matrix</p>
+          <h3>{students.length} Records</h3>
+        </div>
       </div>
     );
   }
@@ -447,11 +440,27 @@ function App() {
             {item.label}
           </button>
         ))}
-        <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        <button className="logout-btn" onClick={handleLogout} style={{ marginTop: 'auto', backgroundColor: '#fce8e6', color: '#a51d24' }}>Logout</button>
       </aside>
-      <main className="dashboard-main">
+      <main className="dashboard-main" style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
         {renderContent()}
       </main>
+
+      {/* MODAL DETAILED VIEW FOR COMPLETE ACCURACY */}
+      {selectedStudent && (
+        <div className="modal-overlay" onClick={() => setSelectedStudent(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '400px' }}>
+            <h2>{selectedStudent.student_name}</h2>
+            <p className="muted">{selectedStudent.student_email}</p>
+            <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '16px 0' }} />
+            <p><strong>Phone:</strong> {selectedStudent.student_phone_no}</p>
+            <p><strong>Level:</strong> {selectedStudent.student_level}</p>
+            <p><strong>GPA:</strong> {Number(selectedStudent.student_gpa).toFixed(2)}</p>
+            <p><strong>CGPA:</strong> {Number(selectedStudent.student_cgpa).toFixed(2)}</p>
+            <button className="submit-btn" onClick={() => setSelectedStudent(null)} style={{ marginTop: '16px', width: '100%' }}>Close View</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
