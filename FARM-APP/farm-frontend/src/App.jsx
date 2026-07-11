@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
+// Updated to point directly to your live backend service on Render
 const API_URL = "https://silas-8.onrender.com";
 
 function App() {
@@ -198,6 +199,7 @@ function App() {
     }
   }
 
+  // FIXED: Handles empty, bad gateway, and non-JSON string responses cleanly
   async function handleLogin(e) {
     e.preventDefault();
     setAuthError("");
@@ -220,8 +222,20 @@ function App() {
         }),
       });
 
+      // Step 1: Read raw server response as plain text
+      const responseText = await response.text();
+      
+      // Step 2: Try parsing it safely
+      let data;
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (jsonError) {
+        console.log("Raw Server Response error:", responseText);
+        setAuthError(`Server error (${response.status}): Web service is waking up or temporarily unavailable.`);
+        return;
+      }
+
       if (response.ok) {
-        const data = await response.json();
         setIsLoggedIn(true);
         setUserRole(data.role);
         setCurrentUser(data);
@@ -229,12 +243,11 @@ function App() {
         setLoginEmail("");
         setLoginPassword("");
       } else {
-        const errData = await response.json();
-        setAuthError(errData.detail || "Login failed");
+        setAuthError(data.detail || "Login failed");
       }
     } catch (error) {
-      console.log("Login error:", error);
-      setAuthError("Network error. Please try again.");
+      console.log("Login network error:", error);
+      setAuthError("Network error. Please make sure the server is online.");
     }
   }
 
