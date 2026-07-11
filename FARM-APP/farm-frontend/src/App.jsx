@@ -30,15 +30,44 @@ const StudentAuthPortal = () => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
-  // Form submission handler
+  // UPDATED: Form submission handler with visual alerts
   const handleSubmit = (e) => {
     e.preventDefault();
+    
     if (activeTab === 'register') {
       console.log("Submitting Register Data to Backend:", registerData);
-      // Connect to your Registration API endpoint here
+      
+      // Visual feedback to prove it works
+      alert(`🎉 Profile Created Successfully for ${registerData.name}!`);
+      
+      /* FUTURE BACKEND CONNECTION:
+         fetch('https://your-api-url.com/api/register', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(registerData)
+         })
+         .then(res => res.json())
+         .then(data => console.log(data));
+      */
+      
+      // Automatically switch to login tab after registration
+      setActiveTab('login');
+      
     } else {
       console.log("Submitting Login Data to Backend:", loginData);
-      // Connect to your Student Login API endpoint here
+      
+      // Visual feedback to prove it works
+      alert(`🔐 Welcome back! Logging in as: ${loginData.email}`);
+      
+      /* FUTURE BACKEND CONNECTION:
+         fetch('https://your-api-url.com/api/login', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify(loginData)
+         })
+         .then(res => res.json())
+         .then(data => console.log(data));
+      */
     }
   };
 
@@ -117,7 +146,7 @@ const StudentAuthPortal = () => {
 
               {/* Flex metrics row for Level, GPA, CGPA */}
               <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ ...styles.inputGroup, flex: 1 }}>
+                <div style={{ ...styles.inputGroup, flex: 1, minWidth: 0 }}>
                   <label style={styles.label}>Level</label>
                   <input
                     type="text"
@@ -129,7 +158,7 @@ const StudentAuthPortal = () => {
                     required
                   />
                 </div>
-                <div style={{ ...styles.inputGroup, flex: 1 }}>
+                <div style={{ ...styles.inputGroup, flex: 1, minWidth: 0 }}>
                   <label style={styles.label}>GPA</label>
                   <input
                     type="number"
@@ -142,7 +171,7 @@ const StudentAuthPortal = () => {
                     required
                   />
                 </div>
-                <div style={{ ...styles.inputGroup, flex: 1 }}>
+                <div style={{ ...styles.inputGroup, flex: 1, minWidth: 0 }}>
                   <label style={styles.label}>CGPA</label>
                   <input
                     type="number"
@@ -209,7 +238,7 @@ const StudentAuthPortal = () => {
   );
 };
 
-// Premium CSS-in-JS layout styled precisely to match your template green theme
+// Stylesheet remains fully intact and styled for the white card fit
 const styles = {
   container: {
     backgroundColor: '#137333',
@@ -218,7 +247,8 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     padding: '20px',
-    fontFamily: 'sans-serif'
+    fontFamily: 'sans-serif',
+    boxSizing: 'border-box'
   },
   card: {
     backgroundColor: '#ffffff',
@@ -226,7 +256,8 @@ const styles = {
     padding: '32px',
     width: '100%',
     maxWidth: '480px',
-    boxShadow: '0 4px 25px rgba(0,0,0,0.15)'
+    boxShadow: '0 4px 25px rgba(0,0,0,0.15)',
+    boxSizing: 'border-box'
   },
   badge: {
     backgroundColor: '#E6F4EA',
@@ -288,6 +319,8 @@ const styles = {
     color: '#333'
   },
   input: {
+    width: '100%',
+    boxSizing: 'border-box',
     padding: '12px',
     borderRadius: '8px',
     border: '1px solid #e0e0e0',
