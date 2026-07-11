@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
+// If you use React Router later, you will uncomment the line below:
+// import { useNavigate } from 'react-router-dom';
 
 const StudentAuthPortal = () => {
+  // If you use React Router later, uncomment this line:
+  // const navigate = useNavigate();
+
   // Tab states: 'register' for creating a student, 'login' for student login
   const [activeTab, setActiveTab] = useState('register');
 
@@ -30,25 +35,14 @@ const StudentAuthPortal = () => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
-  // UPDATED: Form submission handler with visual alerts
+  // UPDATED: Form submission handler with visual alerts and Dashboard Redirection
   const handleSubmit = (e) => {
     e.preventDefault();
     
     if (activeTab === 'register') {
       console.log("Submitting Register Data to Backend:", registerData);
       
-      // Visual feedback to prove it works
-      alert(`🎉 Profile Created Successfully for ${registerData.name}!`);
-      
-      /* FUTURE BACKEND CONNECTION:
-         fetch('https://your-api-url.com/api/register', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(registerData)
-         })
-         .then(res => res.json())
-         .then(data => console.log(data));
-      */
+      alert(`🎉 Profile Created Successfully for ${registerData.name}! Switch to Login.`);
       
       // Automatically switch to login tab after registration
       setActiveTab('login');
@@ -56,18 +50,15 @@ const StudentAuthPortal = () => {
     } else {
       console.log("Submitting Login Data to Backend:", loginData);
       
-      // Visual feedback to prove it works
-      alert(`🔐 Welcome back! Logging in as: ${loginData.email}`);
+      alert(`🔐 Welcome back! Redirecting you to your Student Dashboard...`);
       
-      /* FUTURE BACKEND CONNECTION:
-         fetch('https://your-api-url.com/api/login', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify(loginData)
-         })
-         .then(res => res.json())
-         .then(data => console.log(data));
-      */
+      // --- REDIRECTION LOGIC ---
+      // This sends the browser to your dashboard route or file. 
+      // Change '/dashboard' to your actual dashboard path (e.g., '/dashboard.html' or '/student-dashboard')
+      window.location.href = '/dashboard'; 
+
+      // IF YOU USE REACT ROUTER LATER, delete the window.location line above and use this instead:
+      // navigate('/dashboard');
     }
   };
 
@@ -238,7 +229,6 @@ const StudentAuthPortal = () => {
   );
 };
 
-// Stylesheet remains fully intact and styled for the white card fit
 const styles = {
   container: {
     backgroundColor: '#137333',
